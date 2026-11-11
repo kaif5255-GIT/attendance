@@ -2,7 +2,9 @@ import os
 import uuid
 from datetime import date, datetime, timezone
 from fastapi import Depends, FastAPI, HTTPException, Request, Path, Query
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 import jwt
@@ -35,6 +37,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Format Pydantic validation errors into clean human-readable strings instead of nested JSON objects
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = []
+    for err in exc.errors():
+        loc = err.get("loc", [])
+        field = loc[-1] if loc else "Field"
+        msg = err.get("msg", "Invalid value")
+        errors.append(f"{field}: {msg}")
+    return JSONResponse(status_code=422, content={"detail": "; ".join(errors)})
+
 
 # Auto-create tables and ensure standard roles and Admin exist
 try:

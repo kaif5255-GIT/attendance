@@ -244,16 +244,22 @@ document.getElementById("registerEmployeeForm").addEventListener("submit", async
     event.preventDefault();
 
     const message = document.getElementById("registerEmployeeMessage");
+    const managerSelect = document.getElementById("registerEmployeeManager");
+
+    if (!managerSelect.value) {
+        message.textContent = "Please select a manager first (or create one in the Managers tab).";
+        return;
+    }
 
     const employeeData = {
         Employee_Id: Number(document.getElementById("registerEmployeeId").value),
-        Full_Name: document.getElementById("registerEmployeeName").value,
-        Email: document.getElementById("registerEmployeeEmail").value,
-        Phone: document.getElementById("registerEmployeePhone").value,
+        Full_Name: document.getElementById("registerEmployeeName").value.trim(),
+        Email: document.getElementById("registerEmployeeEmail").value.trim(),
+        Phone: document.getElementById("registerEmployeePhone").value.trim(),
         Password: document.getElementById("registerEmployeePassword").value,
-        Manager_Id: Number(document.getElementById("registerEmployeeManager").value),
-        Department: document.getElementById("registerEmployeeDepartment").value,
-        Designation: document.getElementById("registerEmployeeDesignation").value
+        Manager_Id: Number(managerSelect.value),
+        Department: document.getElementById("registerEmployeeDepartment").value.trim(),
+        Designation: document.getElementById("registerEmployeeDesignation").value.trim()
     };
 
     try {
@@ -269,12 +275,21 @@ document.getElementById("registerEmployeeForm").addEventListener("submit", async
         const data = await response.json();
 
         if (!response.ok) {
-            message.textContent = data.detail || "Employee registration failed";
+            let errorMsg = "Employee registration failed";
+            if (typeof data.detail === "string") {
+                errorMsg = data.detail;
+            } else if (Array.isArray(data.detail)) {
+                errorMsg = data.detail.map(d => (d.loc ? d.loc[d.loc.length - 1] + ": " : "") + (d.msg || JSON.stringify(d))).join("; ");
+            } else if (data.detail && typeof data.detail === "object") {
+                errorMsg = data.detail.msg || data.detail.message || JSON.stringify(data.detail);
+            }
+            message.textContent = errorMsg;
             return;
         }
 
         message.textContent = "Employee registered successfully!";
         event.target.reset();
+        loadManagers();
         if (typeof loadEmployees === "function") loadEmployees();
         if (typeof loadManagerCards === "function") loadManagerCards();
 
@@ -636,7 +651,15 @@ async function apiRequest(url, options = {}) {
     const data = await response.json();
 
     if (!response.ok) {
-        throw new Error(data.detail || "Request failed");
+        let errStr = "Request failed";
+        if (typeof data.detail === "string") {
+            errStr = data.detail;
+        } else if (Array.isArray(data.detail)) {
+            errStr = data.detail.map(d => (d.loc ? d.loc[d.loc.length - 1] + ": " : "") + (d.msg || JSON.stringify(d))).join("; ");
+        } else if (data.detail && typeof data.detail === "object") {
+            errStr = data.detail.msg || data.detail.message || JSON.stringify(data.detail);
+        }
+        throw new Error(errStr);
     }
 
     return data;

@@ -12,7 +12,7 @@ class employeecreate(BaseModel):
     Employee_Id: int
     Employee_Name: str = Field(min_length=1, max_length=100)
     Email: str = Field(min_length=3, max_length=100)
-    Phone: str = Field(min_length=10, max_length=15)
+    Phone: str = Field(min_length=3, max_length=20)
     Department: str = Field(min_length=1, max_length=100)
     Designation: str = Field(min_length=1, max_length=100)
 
@@ -99,8 +99,8 @@ class usercreate(BaseModel):
     Employee_Id: int
     Full_Name: str = Field(min_length=1, max_length=100)
     Email: str = Field(min_length=3, max_length=100)
-    Phone: str = Field(min_length=10, max_length=15)
-    Password: str = Field(min_length=8, max_length=120)
+    Phone: str = Field(min_length=3, max_length=20)
+    Password: str = Field(min_length=4, max_length=128)
     Department: str = Field(min_length=1, max_length=100)
     Designation: str = Field(min_length=1, max_length=100)
     Manager_Id: int
@@ -135,8 +135,8 @@ class roleresponse(BaseModel):
 class managercreate(BaseModel):
     Full_Name: str = Field(min_length=1, max_length=100)
     Email: str = Field(min_length=3, max_length=100)
-    Phone: str = Field(min_length=10, max_length=15)
-    Password: str = Field(min_length=8, max_length=128)
+    Phone: str = Field(min_length=3, max_length=20)
+    Password: str = Field(min_length=4, max_length=128)
 
 
 class managerresponse(BaseModel):
