@@ -231,6 +231,7 @@ document.getElementById("managerForm").addEventListener("submit", async function
         message.textContent = data.message;
         document.getElementById("managerForm").reset();
         loadManagers();
+        if (typeof loadManagerCards === "function") loadManagerCards();
 
     } catch (error) {
         console.error(error);
@@ -274,6 +275,8 @@ document.getElementById("registerEmployeeForm").addEventListener("submit", async
 
         message.textContent = "Employee registered successfully!";
         event.target.reset();
+        if (typeof loadEmployees === "function") loadEmployees();
+        if (typeof loadManagerCards === "function") loadManagerCards();
 
     } catch (error) {
         console.error(error);
@@ -281,77 +284,6 @@ document.getElementById("registerEmployeeForm").addEventListener("submit", async
     }
 });
 
-async function loadEmployees() {
-    const token = localStorage.getItem("access_token");
-    const dashboard = new URLSearchParams(window.location.search)
-        .get("dashboard");
-
-    const listId = dashboard === "manager"
-        ? "managerEmployeeList"
-        : "employeeList";
-
-    const employeeList = document.getElementById(listId);
-    employeeList.hidden = false;
-    employeeList.textContent = "Loading employees...";
-
-    try {
-        const response = await fetch(`${API_URL}/employees`, {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            employeeList.textContent =
-                data.detail || "Unable to load employees";
-            return;
-        }
-
-        employeeList.replaceChildren();
-
-        if (!Array.isArray(data) || data.length === 0) {
-            employeeList.textContent = "No employees found";
-            return;
-        }
-
-        data.forEach(employee => {
-            const item = document.createElement("p");
-
-            item.textContent =
-                `ID: ${employee.Employee_Id} | ` +
-                `Name: ${employee.Employee_Name} | ` +
-                `Department: ${employee.Department} | ` +
-                `Designation: ${employee.Designation}` +
-                (employee.Is_Active === false ? " (Inactive)" : "");
-
-            employeeList.appendChild(item);
-
-            if (listId === "employeeList") {
-                const deactivateButton = document.createElement("button");
-                deactivateButton.textContent = employee.Is_Active === false ? "Deactivated" : "Deactivate";
-                deactivateButton.type = "button";
-                if (employee.Is_Active === false) {
-                    deactivateButton.disabled = true;
-                    deactivateButton.style.opacity = "0.5";
-                }
-
-                deactivateButton.addEventListener("click", function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    deactivateEmployee(employee.Employee_Id);
-                });
-
-                item.appendChild(deactivateButton);
-            }
-        });
-
-    } catch (error) {
-        console.error(error);
-        employeeList.textContent = "Unable to connect to the server";
-    }
-}
 async function deactivateEmployee(employeeId) {
     console.log("Deactivate clicked:", employeeId);
     if (!confirm(`Are you sure you want to deactivate Employee ${employeeId}?`)) {
