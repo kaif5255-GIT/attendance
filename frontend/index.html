@@ -13,7 +13,6 @@
 <div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
 <div id="toasts" aria-live="polite"></div>
 
-<!-- LOGIN -->
 <section id="loginSection" class="auth-wrap">
   <div class="auth-hero">
     <div class="stack" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
@@ -35,7 +34,6 @@
   </div>
 </section>
 
-<!-- RESET PASSWORD -->
 <section id="resetPasswordSection" class="auth-wrap single" hidden>
   <div class="login-container tilt">
     <h2>Set a new password</h2>
@@ -51,213 +49,66 @@
   </div>
 </section>
 
-<!-- ADMIN -->
 <section id="adminDashboard" class="dashboard" hidden>
   <header class="topbar">
     <div class="brand"><b>A</b><span>Attendance<small>Admin</small></span></div>
     <p id="adminSessionMessage" class="session"></p>
     <div class="actions">
-      <button class="btn ghost" onclick="refreshAccessToken()">Refresh session</button>
+      <button class="btn ghost" type="button" onclick="refreshAccessToken()">Refresh session</button>
       <button class="btn ghost" type="button" onclick="backToLogin()">Login page</button>
       <button class="btn danger" type="button" onclick="logout()">Logout</button>
     </div>
-  </header>
-  <div class="shell">
-    <nav class="side">
-      <button data-panel="adminP1" class="on">Profile</button>
-      <button data-panel="adminP2">Managers</button>
-      <button data-panel="adminP3">Employees</button>
-      <button data-panel="adminP4">Attendance</button>
-      <button data-panel="adminP5">Leave records</button>
-    </nav>
-    <main>
-      <div class="panel on" id="adminP1">
-        <div class="card"><h3>My profile</h3>
-          <div class="row"><button class="btn primary" type="button" onclick="loadMyProfile('adminProfile')">View profile</button><button class="btn ghost" type="button" onclick="closeSection('adminProfile')">Close</button></div>
-          <div id="adminProfile" class="out" hidden></div></div>
-      </div>
-      <div class="panel" id="adminP2">
-        <div class="card"><h3>Create manager</h3>
-          <form id="managerForm" class="grid">
-            <input type="text" id="managerName" placeholder="Full name" required>
-            <input type="email" id="managerEmail" placeholder="Email" required>
-            <input type="text" id="managerPhone" placeholder="Phone" required>
-            <input type="password" id="managerPassword" placeholder="Password" required>
-            <button type="submit" class="btn primary">Create manager</button>
-          </form>
-          <p id="managerMessage" class="msg"></p></div>
-      </div>
-      <div class="panel" id="adminP3">
-        <div class="card"><h3>All employees</h3>
-          <div class="row"><button class="btn primary" type="button" onclick="loadEmployees()">View all employees</button><button class="btn ghost" type="button" onclick="closeSection('employeeList')">Close</button></div>
-          <div id="employeeList" class="out" hidden></div></div>
-        <div class="card"><h3>Register employee</h3>
-          <form id="registerEmployeeForm" class="grid">
-            <input type="number" id="registerEmployeeId" placeholder="Employee ID" min="1" required>
-            <input type="text" id="registerEmployeeName" placeholder="Full name" required>
-            <input type="email" id="registerEmployeeEmail" placeholder="Email" required>
-            <input type="text" id="registerEmployeePhone" placeholder="Phone" required>
-            <input type="text" id="registerEmployeeDepartment" placeholder="Department" required>
-            <input type="text" id="registerEmployeeDesignation" placeholder="Designation" required>
-            <select id="registerEmployeeManager" required><option value="">Select manager</option></select>
-            <input type="password" id="registerEmployeePassword" placeholder="Temporary password" required>
-            <button type="submit" class="btn primary">Register employee</button>
-          </form>
-          <p id="registerEmployeeMessage" class="msg"></p></div>
-        <div class="card"><h3>Find employee</h3>
-          <div class="row"><input type="number" id="adminEmployeeId" placeholder="Employee ID" min="1"><button class="btn primary" type="button" onclick="getEmployeeById('admin')">View employee</button><button class="btn ghost" type="button" onclick="closeSection('adminEmployeeDetails')">Close</button></div>
-          <div id="adminEmployeeDetails" class="out" hidden></div></div>
-        <div class="card"><h3>Update employee</h3>
-          <form id="updateEmployeeForm" class="grid">
-            <input type="number" id="updateEmployeeId" placeholder="Employee ID" min="1" required>
-            <input type="text" id="updateEmployeeName" placeholder="Employee name" required>
-            <input type="email" id="updateEmployeeEmail" placeholder="Email" required>
-            <input type="text" id="updateEmployeePhone" placeholder="Phone" required>
-            <input type="text" id="updateEmployeeDepartment" placeholder="Department" required>
-            <input type="text" id="updateEmployeeDesignation" placeholder="Designation" required>
-            <button type="submit" class="btn primary">Update employee</button>
-          </form>
-          <p id="updateEmployeeMessage" class="msg"></p></div>
-        <div class="card two">
-          <div><h3>Delete employee</h3>
-            <div class="row"><input type="number" id="deleteEmployeeId" placeholder="Employee ID" min="1"><button class="btn danger" type="button" onclick="deleteEmployee()">Delete</button></div>
-            <p id="deleteEmployeeMessage" class="msg"></p></div>
-          <div><h3>Deactivate employee</h3>
-            <form id="deactivateEmployeeForm" class="row"><input type="number" id="deactivateEmployeeId" placeholder="Employee ID" min="1" required><button type="submit" class="btn danger">Deactivate</button></form>
-            <p id="deactivateEmployeeMessage" class="msg"></p></div>
-        </div>
-      </div>
-      <div class="panel" id="adminP4">
-        <div class="card"><h3>All attendance</h3>
-          <div class="row"><button class="btn primary" type="button" onclick="loadAllAttendance()">View all attendance</button><button class="btn ghost" type="button" onclick="closeSection('adminAttendanceList')">Close</button></div>
-          <div id="adminAttendanceList" class="out" hidden></div></div>
-        <div class="card"><h3>Attendance by employee</h3>
-          <div class="row"><input type="number" id="adminAttendanceEmployeeId" placeholder="Employee ID" min="1"><button class="btn primary" type="button" onclick="getAttendanceByEmployeeId('admin')">View attendance</button><button class="btn ghost" type="button" onclick="closeSection('adminEmployeeAttendance')">Close</button></div>
-          <div id="adminEmployeeAttendance" class="out" hidden></div></div>
-      </div>
-      <div class="panel" id="adminP5">
-        <div class="card"><h3>All leave records</h3>
-          <div class="row"><button class="btn primary" type="button" onclick="loadAllLeaves()">View all leave records</button><button class="btn ghost" type="button" onclick="closeSection('adminLeaveList')">Close</button></div>
-          <div id="adminLeaveList" class="out" hidden></div></div>
-      </div>
-    </main>
-  </div>
+  </header><div class="shell"><nav class="side"><button type="button" data-panel="adminP1" class=on>Profile</button><button type="button" data-panel="adminP2">Managers</button><button type="button" data-panel="adminP3">Employees</button><button type="button" data-panel="adminP4">Attendance</button><button type="button" data-panel="adminP5">Leave records</button></nav><main><div class="panel on" id="adminP1"><div class="sub card on" id="adminProfileBox"><h3>My profile</h3><div class="row"><button class="btn primary" type="button" onclick="loadMyProfile('adminProfile')">View profile</button><button class="btn ghost" type="button" onclick="closeSection('adminProfile')">Close</button></div><div id="adminProfile" class="out" hidden></div></div></div><div class="panel" id="adminP2"><div class="subtabs"><button type="button" data-sub="mgrAll" class=on>All managers</button><button type="button" data-sub="mgrNew">Create manager</button></div><div class="sub card on" id="mgrAll"><h3>Managers</h3><div id="managerCards" class="mgrs"></div><div id="managerDetail" class="detail" hidden></div></div><div class="sub card" id="mgrNew"><h3>Create manager</h3><form id="managerForm" class="grid">
+    <input type="text" id="managerName" placeholder="Full name" required>
+    <input type="email" id="managerEmail" placeholder="Email" required>
+    <input type="text" id="managerPhone" placeholder="Phone" required>
+    <input type="password" id="managerPassword" placeholder="Password" required>
+    <button type="submit" class="btn primary">Create manager</button></form><p id="managerMessage" class="msg"></p></div></div><div class="panel" id="adminP3"><div class="subtabs"><button type="button" data-sub="empAll" class=on>All employees</button><button type="button" data-sub="empReg">Register</button><button type="button" data-sub="empFind">Find</button><button type="button" data-sub="empUpd">Update</button><button type="button" data-sub="empDel">Delete</button><button type="button" data-sub="empDeact">Deactivate</button></div><div class="sub card on" id="empAll"><h3>All employees</h3><div class="row"><button class="btn primary" type="button" onclick="loadEmployees()">Load employees</button><button class="btn ghost" type="button" onclick="closeSection('employeeList')">Close</button></div><div id="employeeList" class="out" hidden></div></div><div class="sub card" id="empReg"><h3>Register employee</h3><form id="registerEmployeeForm" class="grid">
+    <input type="number" id="registerEmployeeId" placeholder="Employee ID" min="1" required>
+    <input type="text" id="registerEmployeeName" placeholder="Full name" required>
+    <input type="email" id="registerEmployeeEmail" placeholder="Email" required>
+    <input type="text" id="registerEmployeePhone" placeholder="Phone" required>
+    <input type="text" id="registerEmployeeDepartment" placeholder="Department" required>
+    <input type="text" id="registerEmployeeDesignation" placeholder="Designation" required>
+    <select id="registerEmployeeManager" required><option value="">Select manager</option></select>
+    <input type="password" id="registerEmployeePassword" placeholder="Temporary password" required>
+    <button type="submit" class="btn primary">Register employee</button></form><p id="registerEmployeeMessage" class="msg"></p></div><div class="sub card" id="empFind"><h3>Find employee</h3><div class="row"><input type="number" id="adminEmployeeId" placeholder="Employee ID" min="1"><button class="btn primary" type="button" onclick="getEmployeeById('admin')">View employee</button><button class="btn ghost" type="button" onclick="closeSection('adminEmployeeDetails')">Close</button></div><div id="adminEmployeeDetails" class="out" hidden></div></div><div class="sub card" id="empUpd"><h3>Update employee</h3><form id="updateEmployeeForm" class="grid">
+    <input type="number" id="updateEmployeeId" placeholder="Employee ID" min="1" required>
+    <input type="text" id="updateEmployeeName" placeholder="Employee name" required>
+    <input type="email" id="updateEmployeeEmail" placeholder="Email" required>
+    <input type="text" id="updateEmployeePhone" placeholder="Phone" required>
+    <input type="text" id="updateEmployeeDepartment" placeholder="Department" required>
+    <input type="text" id="updateEmployeeDesignation" placeholder="Designation" required>
+    <button type="submit" class="btn primary">Update employee</button></form><p id="updateEmployeeMessage" class="msg"></p></div><div class="sub card" id="empDel"><h3>Delete employee</h3><div class="row"><input type="number" id="deleteEmployeeId" placeholder="Employee ID" min="1"><button class="btn danger" type="button" onclick="deleteEmployee()">Delete employee</button></div><p id="deleteEmployeeMessage" class="msg"></p></div><div class="sub card" id="empDeact"><h3>Deactivate employee</h3><form id="deactivateEmployeeForm" class="row"><input type="number" id="deactivateEmployeeId" placeholder="Employee ID" min="1" required><button type="submit" class="btn danger">Deactivate employee</button></form><p id="deactivateEmployeeMessage" class="msg"></p></div></div><div class="panel" id="adminP4"><div class="subtabs"><button type="button" data-sub="attAll" class=on>All attendance</button><button type="button" data-sub="attOne">By employee</button></div><div class="sub card on" id="attAll"><h3>All attendance</h3><div class="row"><button class="btn primary" type="button" onclick="loadAllAttendance()">View all attendance</button><button class="btn ghost" type="button" onclick="closeSection('adminAttendanceList')">Close</button></div><div id="adminAttendanceList" class="out" hidden></div></div><div class="sub card" id="attOne"><h3>Attendance by employee</h3><div class="row"><input type="number" id="adminAttendanceEmployeeId" placeholder="Employee ID" min="1"><button class="btn primary" type="button" onclick="getAttendanceByEmployeeId('admin')">View attendance</button><button class="btn ghost" type="button" onclick="closeSection('adminEmployeeAttendance')">Close</button></div><div id="adminEmployeeAttendance" class="out" hidden></div></div></div><div class="panel" id="adminP5"><div class="sub card on" id="leaveAll"><h3>All leave records</h3><div class="row"><button class="btn primary" type="button" onclick="loadAllLeaves()">View all leave records</button><button class="btn ghost" type="button" onclick="closeSection('adminLeaveList')">Close</button></div><div id="adminLeaveList" class="out" hidden></div></div></div></main></div>
 </section>
 
-<!-- MANAGER -->
 <section id="managerDashboard" class="dashboard" hidden>
   <header class="topbar">
     <div class="brand"><b>A</b><span>Attendance<small>Manager</small></span></div>
     <p id="managerSessionMessage" class="session"></p>
     <div class="actions">
-      <button class="btn ghost" onclick="refreshAccessToken()">Refresh session</button>
+      <button class="btn ghost" type="button" onclick="refreshAccessToken()">Refresh session</button>
       <button class="btn ghost" type="button" onclick="backToLogin()">Login page</button>
       <button class="btn danger" type="button" onclick="logout()">Logout</button>
     </div>
-  </header>
-  <div class="shell">
-    <nav class="side">
-      <button data-panel="mgrP1" class="on">Profile</button>
-      <button data-panel="mgrP2">My team</button>
-      <button data-panel="mgrP3">Attendance</button>
-      <button data-panel="mgrP4">Leave requests</button>
-    </nav>
-    <main>
-      <div class="panel on" id="mgrP1">
-        <div class="card"><h3>My profile</h3>
-          <div class="row"><button class="btn primary" type="button" onclick="loadMyProfile('managerProfile')">View profile</button><button class="btn ghost" type="button" onclick="closeSection('managerProfile')">Close</button></div>
-          <div id="managerProfile" class="out" hidden></div></div>
-      </div>
-      <div class="panel" id="mgrP2">
-        <div class="card"><h3>Assigned employees</h3>
-          <div class="row"><button class="btn primary" type="button" onclick="loadEmployees()">View assigned employees</button><button class="btn ghost" type="button" onclick="closeSection('managerEmployeeList')">Close</button></div>
-          <div id="managerEmployeeList" class="out" hidden></div></div>
-        <div class="card"><h3>Find assigned employee</h3>
-          <div class="row"><input type="number" id="managerEmployeeId" placeholder="Employee ID" min="1"><button class="btn primary" type="button" onclick="getEmployeeById('manager')">View details</button><button class="btn ghost" type="button" onclick="closeSection('managerEmployeeDetails')">Close</button></div>
-          <div id="managerEmployeeDetails" class="out" hidden></div></div>
-      </div>
-      <div class="panel" id="mgrP3">
-        <div class="card"><h3>Team attendance</h3>
-          <div class="row"><button class="btn primary" type="button" onclick="loadAllAttendance()">View team attendance</button><button class="btn ghost" type="button" onclick="closeSection('managerAttendanceList')">Close</button></div>
-          <div id="managerAttendanceList" class="out" hidden></div></div>
-        <div class="card"><h3>Attendance by employee</h3>
-          <div class="row"><input type="number" id="managerAttendanceEmployeeId" placeholder="Employee ID" min="1"><button class="btn primary" type="button" onclick="getAttendanceByEmployeeId('manager')">View attendance</button><button class="btn ghost" type="button" onclick="closeSection('managerEmployeeAttendance')">Close</button></div>
-          <div id="managerEmployeeAttendance" class="out" hidden></div></div>
-        <div class="card"><h3>Mark attendance</h3>
-          <form id="markAttendanceForm" class="row">
-            <input type="number" id="markAttendanceEmployeeId" placeholder="Employee ID" min="1" required>
-            <select id="markAttendanceStatus" required><option value="">Select status</option><option value="Present">Present</option><option value="Absent">Absent</option><option value="Half Day">Half Day</option><option value="Leave">Leave</option></select>
-            <button type="submit" class="btn primary">Mark attendance</button>
-          </form>
-          <p id="markAttendanceMessage" class="msg"></p></div>
-        <div class="card"><h3>Update today's attendance</h3>
-          <form id="updateAttendanceForm" class="row">
-            <input type="number" id="updateAttendanceEmployeeId" placeholder="Employee ID" min="1" required>
-            <select id="updateAttendanceStatus" required><option value="">Select new status</option><option value="Present">Present</option><option value="Absent">Absent</option><option value="Half Day">Half Day</option><option value="Leave">Leave</option></select>
-            <button type="submit" class="btn primary">Update attendance</button>
-          </form>
-          <p id="updateAttendanceMessage" class="msg"></p></div>
-        <div class="card"><h3>Delete attendance</h3>
-          <form id="deleteAttendanceForm" class="row">
-            <input type="number" id="deleteAttendanceEmployeeId" placeholder="Employee ID" min="1" required>
-            <input type="date" id="deleteAttendanceDate" required>
-            <button type="submit" class="btn danger">Delete attendance</button>
-          </form>
-          <p id="deleteAttendanceMessage" class="msg"></p></div>
-      </div>
-      <div class="panel" id="mgrP4">
-        <div class="card"><h3>Pending leave requests</h3>
-          <div class="row"><button class="btn primary" type="button" onclick="loadPendingLeaves()">View pending leaves</button><button class="btn ghost" type="button" onclick="closeSection('pendingLeaveList')">Close</button></div>
-          <div id="pendingLeaveList" class="out" hidden></div></div>
-      </div>
-    </main>
-  </div>
+  </header><div class="shell"><nav class="side"><button type="button" data-panel="mgrP1" class=on>Profile</button><button type="button" data-panel="mgrP2">My team</button><button type="button" data-panel="mgrP3">Attendance</button><button type="button" data-panel="mgrP4">Leave requests</button></nav><main><div class="panel on" id="mgrP1"><div class="sub card on" id="managerProfileBox"><h3>My profile</h3><div class="row"><button class="btn primary" type="button" onclick="loadMyProfile('managerProfile')">View profile</button><button class="btn ghost" type="button" onclick="closeSection('managerProfile')">Close</button></div><div id="managerProfile" class="out" hidden></div></div></div><div class="panel" id="mgrP2"><div class="subtabs"><button type="button" data-sub="teamAll" class=on>Assigned employees</button><button type="button" data-sub="teamFind">Find employee</button></div><div class="sub card on" id="teamAll"><h3>Assigned employees</h3><div class="row"><button class="btn primary" type="button" onclick="loadEmployees()">View assigned employees</button><button class="btn ghost" type="button" onclick="closeSection('managerEmployeeList')">Close</button></div><div id="managerEmployeeList" class="out" hidden></div></div><div class="sub card" id="teamFind"><h3>Find assigned employee</h3><div class="row"><input type="number" id="managerEmployeeId" placeholder="Employee ID" min="1"><button class="btn primary" type="button" onclick="getEmployeeById('manager')">View details</button><button class="btn ghost" type="button" onclick="closeSection('managerEmployeeDetails')">Close</button></div><div id="managerEmployeeDetails" class="out" hidden></div></div></div><div class="panel" id="mgrP3"><div class="subtabs"><button type="button" data-sub="maTeam" class=on>Team attendance</button><button type="button" data-sub="maOne">By employee</button><button type="button" data-sub="maMark">Mark</button><button type="button" data-sub="maUpd">Update today</button><button type="button" data-sub="maDel">Delete</button></div><div class="sub card on" id="maTeam"><h3>Team attendance</h3><div class="row"><button class="btn primary" type="button" onclick="loadAllAttendance()">View team attendance</button><button class="btn ghost" type="button" onclick="closeSection('managerAttendanceList')">Close</button></div><div id="managerAttendanceList" class="out" hidden></div></div><div class="sub card" id="maOne"><h3>Attendance by employee</h3><div class="row"><input type="number" id="managerAttendanceEmployeeId" placeholder="Employee ID" min="1"><button class="btn primary" type="button" onclick="getAttendanceByEmployeeId('manager')">View attendance</button><button class="btn ghost" type="button" onclick="closeSection('managerEmployeeAttendance')">Close</button></div><div id="managerEmployeeAttendance" class="out" hidden></div></div><div class="sub card" id="maMark"><h3>Mark attendance</h3><form id="markAttendanceForm" class="row"><input type="number" id="markAttendanceEmployeeId" placeholder="Employee ID" min="1" required><select id="markAttendanceStatus" required><option value="">Select status</option><option value="Present">Present</option><option value="Absent">Absent</option><option value="Half Day">Half Day</option><option value="Leave">Leave</option></select><button type="submit" class="btn primary">Mark attendance</button></form><p id="markAttendanceMessage" class="msg"></p></div><div class="sub card" id="maUpd"><h3>Update today's attendance</h3><form id="updateAttendanceForm" class="row"><input type="number" id="updateAttendanceEmployeeId" placeholder="Employee ID" min="1" required><select id="updateAttendanceStatus" required><option value="">Select new status</option><option value="Present">Present</option><option value="Absent">Absent</option><option value="Half Day">Half Day</option><option value="Leave">Leave</option></select><button type="submit" class="btn primary">Update attendance</button></form><p id="updateAttendanceMessage" class="msg"></p></div><div class="sub card" id="maDel"><h3>Delete attendance</h3><form id="deleteAttendanceForm" class="row"><input type="number" id="deleteAttendanceEmployeeId" placeholder="Employee ID" min="1" required><input type="date" id="deleteAttendanceDate" required><button type="submit" class="btn danger">Delete attendance</button></form><p id="deleteAttendanceMessage" class="msg"></p></div></div><div class="panel" id="mgrP4"><div class="sub card on" id="pend"><h3>Pending leave requests</h3><div class="row"><button class="btn primary" type="button" onclick="loadPendingLeaves()">View pending leaves</button><button class="btn ghost" type="button" onclick="closeSection('pendingLeaveList')">Close</button></div><div id="pendingLeaveList" class="out" hidden></div></div></div></main></div>
 </section>
 
-<!-- EMPLOYEE -->
 <section id="employeeDashboard" class="dashboard" hidden>
   <header class="topbar">
     <div class="brand"><b>A</b><span>Attendance<small>Employee</small></span></div>
     <p id="employeeSessionMessage" class="session"></p>
     <div class="actions">
-      <button class="btn ghost" onclick="refreshAccessToken()">Refresh session</button>
+      <button class="btn ghost" type="button" onclick="refreshAccessToken()">Refresh session</button>
       <button class="btn ghost" type="button" onclick="backToLogin()">Login page</button>
-      <button class="btn danger" onclick="logout()">Logout</button>
+      <button class="btn danger" type="button" onclick="logout()">Logout</button>
     </div>
-  </header>
-  <div class="shell">
-    <nav class="side">
-      <button data-panel="empP1" class="on">Profile</button>
-      <button data-panel="empP2">My attendance</button>
-      <button data-panel="empP3">Leave</button>
-    </nav>
-    <main>
-      <div class="panel on" id="empP1">
-        <div class="card"><h3>My profile</h3>
-          <div class="row"><button class="btn primary" type="button" onclick="loadMyProfile('employeeProfile')">View profile</button><button class="btn ghost" type="button" onclick="closeSection('employeeProfile')">Close</button></div>
-          <div id="employeeProfile" class="out" hidden></div></div>
-      </div>
-      <div class="panel" id="empP2">
-        <div class="card"><h3>My attendance</h3>
-          <div class="row"><button class="btn primary" onclick="loadMyAttendance()">View attendance</button><button class="btn ghost" type="button" onclick="closeSection('myAttendance')">Close</button></div>
-          <div id="myAttendance" class="out" hidden></div></div>
-      </div>
-      <div class="panel" id="empP3">
-        <div class="card"><h3>Apply for leave</h3>
-          <form id="leaveForm" class="grid">
-            <div><label for="fromDate">From date</label><input type="date" id="fromDate" required></div>
-            <div><label for="toDate">To date</label><input type="date" id="toDate" required></div>
-            <div><label for="leaveType">Leave type</label><input type="text" id="leaveType" placeholder="e.g. Sick, Casual" required></div>
-            <div class="full"><label for="leaveReason">Reason</label><textarea id="leaveReason" rows="3" required></textarea></div>
-            <button type="submit" class="btn primary">Apply for leave</button>
-          </form>
-          <p id="leaveMessage" class="msg"></p></div>
-        <div class="card"><h3>My leave status</h3>
-          <div class="row"><button class="btn primary" onclick="loadMyLeaves()">View leave status</button><button class="btn ghost" type="button" onclick="closeSection('myLeaves')">Close</button></div>
-          <div id="myLeaves" class="out" hidden></div></div>
-      </div>
-    </main>
-  </div>
+  </header><div class="shell"><nav class="side"><button type="button" data-panel="empP1" class=on>Profile</button><button type="button" data-panel="empP2">My attendance</button><button type="button" data-panel="empP3">Leave</button></nav><main><div class="panel on" id="empP1"><div class="sub card on" id="employeeProfileBox"><h3>My profile</h3><div class="row"><button class="btn primary" type="button" onclick="loadMyProfile('employeeProfile')">View profile</button><button class="btn ghost" type="button" onclick="closeSection('employeeProfile')">Close</button></div><div id="employeeProfile" class="out" hidden></div></div></div><div class="panel" id="empP2"><div class="sub card on" id="myAtt"><h3>My attendance</h3><div class="row"><button class="btn primary" type="button" onclick="loadMyAttendance()">View attendance</button><button class="btn ghost" type="button" onclick="closeSection('myAttendance')">Close</button></div><div id="myAttendance" class="out" hidden></div></div></div><div class="panel" id="empP3"><div class="subtabs"><button type="button" data-sub="lvApply" class=on>Apply for leave</button><button type="button" data-sub="lvStatus">My leave status</button></div><div class="sub card on" id="lvApply"><h3>Apply for leave</h3><form id="leaveForm" class="grid">
+    <div><label for="fromDate">From date</label><input type="date" id="fromDate" required></div>
+    <div><label for="toDate">To date</label><input type="date" id="toDate" required></div>
+    <div><label for="leaveType">Leave type</label><input type="text" id="leaveType" placeholder="e.g. Sick, Casual" required></div>
+    <div class="full"><label for="leaveReason">Reason</label><textarea id="leaveReason" rows="3" required></textarea></div>
+    <button type="submit" class="btn primary">Apply for leave</button></form><p id="leaveMessage" class="msg"></p></div><div class="sub card" id="lvStatus"><h3>My leave status</h3><div class="row"><button class="btn primary" type="button" onclick="loadMyLeaves()">View leave status</button><button class="btn ghost" type="button" onclick="closeSection('myLeaves')">Close</button></div><div id="myLeaves" class="out" hidden></div></div></div></main></div>
 </section>
 
 <script src="script.js"></script>

@@ -1,13 +1,13 @@
 import os
 import uuid
 from datetime import date, datetime, timezone
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Path, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 import jwt
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import case, func
+from sqlalchemy.orm import Session, aliased
 from auth import ALGORITHM, SECRET_KEY, create_access_token, create_refresh_token
 from database import Base, engine, get_db, sessionlocal
 import models
@@ -299,14 +299,194 @@ def create_manager(
     }
 
 
-# Returns active managers for employee assignment dropdowns
-@app.get("/managers")
-def get_managers(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_manager_counts(db: Session, manager_id: int):
+    EmpUser = aliased(models.User, name="emp_user_counts")
+    counts = (
+        db.query(
+            func.count(models.Employee.Employee_Id).label("total"),
+            func.sum(case((func.coalesce(EmpUser.Is_Active, True) == True, 1), else_=0)).label("active"),
+            func.sum(case((func.coalesce(EmpUser.Is_Active, True) == False, 1), else_=0)).label("inactive"),
+        )
+        .outerjoin(EmpUser, models.Employee.User_Id == EmpUser.User_Id)
+        .filter(models.Employee.Manager_Id == manager_id)
+        .first()
+    )
+    total = counts.total or 0
+    active = int(counts.active or 0)
+    inactive = int(counts.inactive or 0)
+    return total, active, inactive
+
+
+# Returns all managers with team size and status (Admin only)
+@app.get("/managers", response_model=list[schemas.ManagerListItem])
+def get_managers(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role(["admin"]))
+):
     manager_role = db.query(models.Role).filter(func.lower(models.Role.Role_Name) == "manager").first()
     if not manager_role:
         raise HTTPException(status_code=404, detail="Manager role not found")
-    managers = db.query(models.User).filter(models.User.Role_Id == manager_role.Role_Id, models.User.Is_Active == True).all()
-    return [{"User_Id": m.User_Id, "Full_Name": m.Full_Name} for m in managers]
+
+    EmpUser = aliased(models.User, name="emp_user_agg")
+    subq = (
+        db.query(
+            models.Employee.Manager_Id.label("manager_id"),
+            func.count(models.Employee.Employee_Id).label("total_employees"),
+            func.sum(case((func.coalesce(EmpUser.Is_Active, True) == True, 1), else_=0)).label("active_employees"),
+            func.sum(case((func.coalesce(EmpUser.Is_Active, True) == False, 1), else_=0)).label("inactive_employees"),
+        )
+        .outerjoin(EmpUser, models.Employee.User_Id == EmpUser.User_Id)
+        .group_by(models.Employee.Manager_Id)
+        .subquery()
+    )
+
+    rows = (
+        db.query(
+            models.User,
+            func.coalesce(subq.c.total_employees, 0).label("total_employees"),
+            func.coalesce(subq.c.active_employees, 0).label("active_employees"),
+            func.coalesce(subq.c.inactive_employees, 0).label("inactive_employees"),
+        )
+        .outerjoin(subq, models.User.User_Id == subq.c.manager_id)
+        .filter(models.User.Role_Id == manager_role.Role_Id)
+        .order_by(models.User.User_Id)
+        .all()
+    )
+
+    return [
+        {
+            "User_Id": user.User_Id,
+            "Full_Name": user.Full_Name,
+            "Email": user.Email,
+            "Phone": user.Phone,
+            "Is_Active": user.Is_Active,
+            "Total_Employees": int(tot),
+            "Active_Employees": int(act),
+            "Inactive_Employees": int(inact),
+        }
+        for user, tot, act, inact in rows
+    ]
+
+
+# Returns single manager profile with team metrics (Admin only)
+@app.get("/managers/{manager_id}", response_model=schemas.ManagerProfileResponse)
+def get_manager_by_id(
+    manager_id: int = Path(..., ge=1, description="Manager User ID"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role(["admin"]))
+):
+    user = db.query(models.User).filter(models.User.User_Id == manager_id).first()
+    if not user or not user.role or user.role.Role_Name.lower() != "manager":
+        raise HTTPException(status_code=404, detail="Manager not found")
+
+    total, active, inactive = get_manager_counts(db, manager_id)
+    return {
+        "User_Id": user.User_Id,
+        "Full_Name": user.Full_Name,
+        "Email": user.Email,
+        "Phone": user.Phone,
+        "Role_Name": user.role.Role_Name,
+        "Is_Active": user.Is_Active,
+        "Total_Employees": total,
+        "Active_Employees": active,
+        "Inactive_Employees": inactive,
+    }
+
+
+# Returns employees assigned to a specific manager (Admin only)
+@app.get("/managers/{manager_id}/employees", response_model=list[schemas.ManagerEmployeeItem])
+def get_manager_employees(
+    manager_id: int = Path(..., ge=1, description="Manager User ID"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role(["admin"]))
+):
+    manager = db.query(models.User).filter(models.User.User_Id == manager_id).first()
+    if not manager or not manager.role or manager.role.Role_Name.lower() != "manager":
+        raise HTTPException(status_code=404, detail="Manager not found")
+
+    EmpUser = aliased(models.User, name="emp_user_mgr")
+    rows = (
+        db.query(
+            models.Employee,
+            func.coalesce(EmpUser.Is_Active, True).label("is_active")
+        )
+        .outerjoin(EmpUser, models.Employee.User_Id == EmpUser.User_Id)
+        .filter(models.Employee.Manager_Id == manager_id)
+        .order_by(models.Employee.Employee_Id)
+        .all()
+    )
+
+    return [
+        {
+            "Employee_Id": emp.Employee_Id,
+            "Employee_Name": emp.Employee_Name,
+            "Email": emp.Email,
+            "Phone": emp.Phone,
+            "Department": emp.Department,
+            "Designation": emp.Designation,
+            "Is_Active": bool(is_act),
+            "Manager_Id": manager.User_Id,
+            "Manager_Name": manager.Full_Name,
+        }
+        for emp, is_act in rows
+    ]
+
+
+# Delete a manager with optional reassignment of assigned employees (Admin only)
+@app.delete("/Admin/managers/{manager_id}")
+@app.delete("/admin/managers/{manager_id}")
+def delete_manager(
+    manager_id: int = Path(..., ge=1, description="Manager User ID to delete"),
+    reassign_to: int | None = Query(None, description="Target Manager User ID to reassign employees to"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role(["admin"]))
+):
+    if manager_id == current_user.User_Id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+
+    manager = db.query(models.User).filter(models.User.User_Id == manager_id).first()
+    if not manager:
+        raise HTTPException(status_code=404, detail="Manager not found")
+    if not manager.role or manager.role.Role_Name.lower() != "manager":
+        raise HTTPException(status_code=400, detail="User is not a manager")
+
+    # Check assigned employees
+    assigned_count = db.query(func.count(models.Employee.Employee_Id)).filter(models.Employee.Manager_Id == manager_id).scalar() or 0
+    if assigned_count > 0:
+        if reassign_to is None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete manager. Manager currently has {assigned_count} assigned employee(s). Provide reassign_to=<another_manager_id> to reassign them."
+            )
+        if reassign_to == manager_id:
+            raise HTTPException(status_code=400, detail="Cannot reassign employees to the manager being deleted")
+
+        target_manager = db.query(models.User).filter(models.User.User_Id == reassign_to).first()
+        if not target_manager:
+            raise HTTPException(status_code=404, detail="Target manager for reassignment not found")
+        if not target_manager.role or target_manager.role.Role_Name.lower() != "manager":
+            raise HTTPException(status_code=400, detail="Target user for reassignment is not a manager")
+
+        # Move all assigned employees to the new manager
+        db.query(models.Employee).filter(models.Employee.Manager_Id == manager_id).update(
+            {models.Employee.Manager_Id: reassign_to},
+            synchronize_session=False
+        )
+
+    # Clean up FK dependencies before deleting user
+    db.query(models.LeaveRequest).filter(models.LeaveRequest.Reviewed_By == manager_id).update(
+        {models.LeaveRequest.Reviewed_By: None},
+        synchronize_session=False
+    )
+    db.query(models.Employee).filter(models.Employee.User_Id == manager_id).update(
+        {models.Employee.User_Id: None},
+        synchronize_session=False
+    )
+
+    db.delete(manager)
+    db.commit()
+    return {"message": "Manager deleted successfully"}
+
 
 
 # Creates User account and linked Employee record atomically
@@ -378,21 +558,32 @@ def register_employee(
 
 
 # Scoped: Admin views all, Manager views assigned team
-@app.get("/employees")
+@app.get("/employees", response_model=list[schemas.EmployeeListItem])
 def get_all_employees(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role(["admin", "manager"]))
 ):
     role = current_user.role.Role_Name.lower()
-    if role == "admin":
-        employees = db.query(models.Employee).all()
-    else:
-        employees = db.query(models.Employee).filter(models.Employee.Manager_Id == current_user.User_Id).all()
+    EmpUser = aliased(models.User, name="emp_user_list")
+    MgrUser = aliased(models.User, name="mgr_user_list")
 
-    result = []
-    for emp in employees:
-        user = db.query(models.User).filter(models.User.User_Id == emp.User_Id).first() if emp.User_Id else None
-        result.append({
+    query = (
+        db.query(
+            models.Employee,
+            func.coalesce(EmpUser.Is_Active, True).label("is_active"),
+            MgrUser.Full_Name.label("manager_name")
+        )
+        .outerjoin(EmpUser, models.Employee.User_Id == EmpUser.User_Id)
+        .outerjoin(MgrUser, models.Employee.Manager_Id == MgrUser.User_Id)
+    )
+
+    if role == "admin":
+        rows = query.order_by(models.Employee.Employee_Id).all()
+    else:
+        rows = query.filter(models.Employee.Manager_Id == current_user.User_Id).order_by(models.Employee.Employee_Id).all()
+
+    return [
+        {
             "Employee_Id": emp.Employee_Id,
             "Employee_Name": emp.Employee_Name,
             "Email": emp.Email,
@@ -400,10 +591,12 @@ def get_all_employees(
             "Department": emp.Department,
             "Designation": emp.Designation,
             "Manager_Id": emp.Manager_Id,
+            "Manager_Name": mgr_name,
             "User_Id": emp.User_Id,
-            "Is_Active": user.Is_Active if user else True
-        })
-    return result
+            "Is_Active": bool(is_act),
+        }
+        for emp, is_act, mgr_name in rows
+    ]
 
 
 @app.get("/employee/{employee_id}", response_model=schemas.employeeresponse)
@@ -492,28 +685,42 @@ def deactivate_employee(
     return {"message": "Employee deactivated successfully"}
 
 
-# Blocks hard delete if attendance or leave records exist to preserve audit trail
+# Hard-delete: cascades attendance, leaves, and linked user account in one transaction (Admin only)
 @app.delete("/employees/{employee_id}")
 def delete_employee(
-    employee_id: int,
+    employee_id: int = Path(..., ge=1, description="Employee ID to delete"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role(["admin"]))
 ):
     employee = db.query(models.Employee).filter(models.Employee.Employee_Id == employee_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
-    attendance = db.query(models.Attendance).filter(models.Attendance.Employee_Id == employee_id).first()
-    leave = db.query(models.LeaveRequest).filter(models.LeaveRequest.Employee_Id == employee_id).first()
-    if attendance or leave:
-        raise HTTPException(status_code=400, detail="Cannot delete employee because attendance or leave records exist")
 
-    # Cleanly remove linked user account if present
-    if employee.User_Id:
-        user = db.query(models.User).filter(models.User.User_Id == employee.User_Id).first()
+    user_id = employee.User_Id
+
+    # 1. Cascade delete attendance records
+    db.query(models.Attendance).filter(models.Attendance.Employee_Id == employee_id).delete(synchronize_session=False)
+
+    # 2. Cascade delete leave requests
+    db.query(models.LeaveRequest).filter(models.LeaveRequest.Employee_Id == employee_id).delete(synchronize_session=False)
+
+    # 3. Delete employee record
+    db.delete(employee)
+    db.flush()
+
+    # 4. Delete linked user account if present
+    if user_id:
+        user = db.query(models.User).filter(models.User.User_Id == user_id).first()
         if user:
+            # Clear any reviewed leaves or managed employees linked to this user
+            db.query(models.LeaveRequest).filter(models.LeaveRequest.Reviewed_By == user_id).update(
+                {models.LeaveRequest.Reviewed_By: None}, synchronize_session=False
+            )
+            db.query(models.Employee).filter(models.Employee.Manager_Id == user_id).update(
+                {models.Employee.Manager_Id: None}, synchronize_session=False
+            )
             db.delete(user)
 
-    db.delete(employee)
     db.commit()
     return {"message": "Employee deleted successfully"}
 

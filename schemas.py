@@ -158,3 +158,56 @@ class leaveReview(BaseModel):
 class PasswordReset(BaseModel):
     Temporary_Password: str
     New_Password: str = Field(min_length=8, max_length=128)
+
+
+class ManagerListItem(BaseModel):
+    User_Id: int
+    Full_Name: str
+    Email: str | None = None
+    Phone: str | None = None
+    Is_Active: bool
+    Total_Employees: int
+    Active_Employees: int
+    Inactive_Employees: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ManagerProfileResponse(BaseModel):
+    User_Id: int
+    Full_Name: str
+    Email: str | None = None
+    Phone: str | None = None
+    Role_Name: str
+    Is_Active: bool
+    Total_Employees: int
+    Active_Employees: int
+    Inactive_Employees: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ManagerEmployeeItem(BaseModel):
+    Employee_Id: int
+    Employee_Name: str | None = None
+    Email: str | None = None
+    Phone: str | None = None
+    Department: str | None = None
+    Designation: str | None = None
+    Is_Active: bool
+    Manager_Id: int | None = None
+    Manager_Name: str | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EmployeeListItem(BaseModel):
+    Employee_Id: int
+    Employee_Name: str | None = None
+    Email: str | None = None
+    Phone: str | None = None
+    Department: str | None = None
+    Designation: str | None = None
+    Manager_Id: int | None = None
+    Manager_Name: str | None = None
+    User_Id: int | None = None
+    Is_Active: bool
+    model_config = ConfigDict(from_attributes=True)
+

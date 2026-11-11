@@ -1345,3 +1345,219 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
         card.addEventListener("pointerleave", () => card.style.transform = "");
     });
 }
+
+
+/* ================= ADMIN / MANAGER FEATURES + SUB-TABS ================= */
+
+// Sub-tab buttons inside each panel
+document.querySelectorAll(".subtabs button").forEach(b => {
+    b.addEventListener("click", () => {
+        const panel = b.closest(".panel");
+        panel.querySelectorAll(".subtabs button").forEach(x => x.classList.toggle("on", x === b));
+        panel.querySelectorAll(".sub").forEach(sec => sec.classList.toggle("on", sec.id === b.dataset.sub));
+        if (b.dataset.sub === "mgrAll") loadManagerCards();
+    });
+});
+document.querySelector('[data-panel="adminP2"]')?.addEventListener("click", loadManagerCards);
+
+// Small DOM helpers
+function h(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+}
+function actionBtn(text, cls, fn) {
+    const b = h("button", cls, text);
+    b.type = "button";
+    b.addEventListener("click", e => { e.stopPropagation(); fn(); });
+    return b;
+}
+function makeCard(fields, buttons = []) {
+    const row = h("div", "item");
+    fields.forEach(([label, value]) => {
+        const f = h("div", "f" + (label === "Status" ? " status" : ""));
+        const v = h("span", label === "Status" ? String(value).split(" ")[0] : "", value ?? "-");
+        f.append(h("small", null, label), v);
+        row.appendChild(f);
+    });
+    row.append(...buttons);
+    return row;
+}
+const activeText = x => (x === false || x === 0 ? "Inactive" : "Active");
+
+// ---------- Employees (admin sees manager + remove; manager sees own team) ----------
+async function loadEmployees() {
+    const isManager = new URLSearchParams(location.search).get("dashboard") === "manager";
+    const box = document.getElementById(isManager ? "managerEmployeeList" : "employeeList");
+    box.hidden = false;
+    box.textContent = "Loading employees...";
+    try {
+        const data = await apiRequest("/employees");
+        box.replaceChildren();
+        if (!Array.isArray(data) || data.length === 0) {
+            box.textContent = "No employees found";
+            return;
+        }
+        data.forEach(emp => {
+            const buttons = [];
+            if (!isManager) {
+                const inactive = emp.Is_Active === false;
+                const deact = actionBtn(inactive ? "Deactivated" : "Deactivate", "", () => deactivateEmployee(emp.Employee_Id));
+                deact.disabled = inactive;
+                buttons.push(deact, actionBtn("Remove", "danger", () => removeEmployee(emp.Employee_Id, emp.Employee_Name)));
+            }
+            box.appendChild(makeCard([
+                ["ID", emp.Employee_Id],
+                ["Name", emp.Employee_Name],
+                ["Department", emp.Department],
+                ["Designation", emp.Designation],
+                ["Reports to", emp.Manager_Name || "Unassigned"],
+                ["Status", activeText(emp.Is_Active)]
+            ], buttons));
+        });
+    } catch (error) {
+        box.textContent = error.message;
+    }
+}
+
+async function removeEmployee(id, name) {
+    if (!confirm(`Remove ${name || "employee"} (ID ${id})? This cannot be undone.`)) return;
+    try {
+        const r = await apiRequest(`/employees/${encodeURIComponent(id)}`, { method: "DELETE" });
+        showToast(r.message || "Employee removed", "ok");
+        loadEmployees();
+    } catch (error) {
+        showToast(error.message, "bad");
+    }
+}
+
+// ---------- Managers ----------
+let managersCache = [];
+
+async function loadManagerCards() {
+    const box = document.getElementById("managerCards");
+    if (!box) return;
+    document.getElementById("managerDetail").hidden = true;
+    box.hidden = false;
+    box.textContent = "Loading managers...";
+    try {
+        managersCache = await apiRequest("/managers");
+        box.replaceChildren();
+        if (!managersCache.length) {
+            box.textContent = "No managers yet. Add one from the Create manager tab.";
+            return;
+        }
+        managersCache.forEach(m => {
+            const card = h("div", "mcard");
+            card.tabIndex = 0;
+            card.setAttribute("role", "button");
+            const top = h("div", "top");
+            const who = h("div");
+            who.append(h("h4", null, m.Full_Name), h("p", null, m.Email || ""));
+            top.append(h("span", "avatar", (m.Full_Name || "?").trim().charAt(0).toUpperCase()), who);
+            const status = activeText(m.Is_Active);
+            const chips = h("div", "chips");
+            chips.append(
+                h("span", "chip " + status, status),
+                h("span", "chip", `${m.Total_Employees ?? 0} employees`),
+                h("span", "chip", `${m.Active_Employees ?? 0} active / ${m.Inactive_Employees ?? 0} inactive`)
+            );
+            const btns = h("div", "btns");
+            btns.append(
+                actionBtn("View profile", "", () => openManager(m.User_Id)),
+                actionBtn("Remove", "danger", () => removeManagerFromCard(m))
+            );
+            card.append(top, h("p", null, m.Phone || ""), chips, btns);
+            card.addEventListener("click", () => openManager(m.User_Id));
+            card.addEventListener("keydown", e => { if (e.key === "Enter") openManager(m.User_Id); });
+            box.appendChild(card);
+        });
+    } catch (error) {
+        box.textContent = error.message;
+    }
+}
+
+function removeManagerFromCard(m) {
+    if ((m.Total_Employees ?? 0) > 0) {
+        showToast(`${m.Full_Name} has ${m.Total_Employees} employees. Choose a manager to move them to, then remove.`, "bad");
+        openManager(m.User_Id);
+        return;
+    }
+    removeManager(m.User_Id, m.Full_Name, "");
+}
+
+async function openManager(id) {
+    const detail = document.getElementById("managerDetail");
+    document.getElementById("managerCards").hidden = true;
+    detail.hidden = false;
+    detail.textContent = "Loading manager...";
+    try {
+        const [m, team] = await Promise.all([
+            apiRequest(`/managers/${encodeURIComponent(id)}`),
+            apiRequest(`/managers/${encodeURIComponent(id)}/employees`)
+        ]);
+        detail.replaceChildren();
+
+        const back = actionBtn("Back to all managers", "btn ghost", loadManagerCards);
+        const head = h("div", "head");
+        const title = h("div");
+        const status = activeText(m.Is_Active);
+        title.append(h("h3", null, m.Full_Name), h("span", "chip " + status, status));
+        head.append(h("span", "avatar", (m.Full_Name || "?").trim().charAt(0).toUpperCase()), title);
+
+        const info = h("div", "info");
+        [
+            ["User ID", m.User_Id], ["Email", m.Email], ["Phone", m.Phone], ["Role", m.Role_Name],
+            ["Total employees", m.Total_Employees ?? team.length],
+            ["Active employees", m.Active_Employees ?? team.filter(e => e.Is_Active !== false).length],
+            ["Inactive employees", m.Inactive_Employees ?? team.filter(e => e.Is_Active === false).length]
+        ].forEach(([l, v]) => {
+            const d = h("div");
+            d.append(h("small", null, l), h("b", null, v ?? "-"));
+            info.appendChild(d);
+        });
+
+        const list = h("div", "out");
+        list.style.maxHeight = "none";
+        if (!team.length) list.textContent = "No employees assigned to this manager.";
+        team.forEach(e => list.appendChild(makeCard([
+            ["ID", e.Employee_Id], ["Name", e.Employee_Name], ["Department", e.Department],
+            ["Designation", e.Designation], ["Status", activeText(e.Is_Active)]
+        ])));
+
+        const zone = h("div", "danger-zone");
+        const select = h("select");
+        select.append(new Option(team.length ? "Move employees to... (required if any)" : "No employees to move", ""));
+        managersCache.filter(x => x.User_Id !== m.User_Id).forEach(x => select.append(new Option(x.Full_Name, x.User_Id)));
+        select.disabled = !team.length;
+        zone.append(
+            h("h4", null, "Remove this manager"),
+            h("p", null, team.length ? "Employees must be moved to another manager first." : "This manager has no employees and can be removed directly."),
+            select,
+            actionBtn("Remove manager", "btn danger", () => removeManager(m.User_Id, m.Full_Name, select.value, team.length))
+        );
+
+        detail.append(back, head, info, h("h4", null, `Employees (${team.length})`), list, zone);
+    } catch (error) {
+        detail.textContent = error.message;
+        detail.appendChild(actionBtn("Back to all managers", "btn ghost", loadManagerCards));
+    }
+}
+
+async function removeManager(id, name, reassignTo, teamSize = 0) {
+    if (teamSize > 0 && !reassignTo) {
+        showToast("Select a manager to move the employees to first.", "bad");
+        return;
+    }
+    if (!confirm(`Remove manager ${name}? This cannot be undone.`)) return;
+    try {
+        const query = reassignTo ? `?reassign_to=${encodeURIComponent(reassignTo)}` : "";
+        const r = await apiRequest(`/Admin/managers/${encodeURIComponent(id)}${query}`, { method: "DELETE" });
+        showToast(r.message || "Manager removed", "ok");
+        await loadManagerCards();
+        loadManagers();
+    } catch (error) {
+        showToast(error.message, "bad");
+    }
+}
