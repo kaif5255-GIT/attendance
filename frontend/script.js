@@ -149,6 +149,7 @@ async function showDashboard() {
             actualRole !== "manager";
         document.getElementById("employeeDashboard").hidden =
             actualRole !== "employee";
+        autoLoadProfile(actualRole);
 
     } catch (error) {
         console.error(error);
@@ -231,7 +232,6 @@ document.getElementById("managerForm").addEventListener("submit", async function
         message.textContent = data.message;
         document.getElementById("managerForm").reset();
         loadManagers();
-        if (typeof loadManagerCards === "function") loadManagerCards();
 
     } catch (error) {
         console.error(error);
@@ -244,22 +244,16 @@ document.getElementById("registerEmployeeForm").addEventListener("submit", async
     event.preventDefault();
 
     const message = document.getElementById("registerEmployeeMessage");
-    const managerSelect = document.getElementById("registerEmployeeManager");
-
-    if (!managerSelect.value) {
-        message.textContent = "Please select a manager first (or create one in the Managers tab).";
-        return;
-    }
 
     const employeeData = {
         Employee_Id: Number(document.getElementById("registerEmployeeId").value),
-        Full_Name: document.getElementById("registerEmployeeName").value.trim(),
-        Email: document.getElementById("registerEmployeeEmail").value.trim(),
-        Phone: document.getElementById("registerEmployeePhone").value.trim(),
+        Full_Name: document.getElementById("registerEmployeeName").value,
+        Email: document.getElementById("registerEmployeeEmail").value,
+        Phone: document.getElementById("registerEmployeePhone").value,
         Password: document.getElementById("registerEmployeePassword").value,
-        Manager_Id: Number(managerSelect.value),
-        Department: document.getElementById("registerEmployeeDepartment").value.trim(),
-        Designation: document.getElementById("registerEmployeeDesignation").value.trim()
+        Manager_Id: Number(document.getElementById("registerEmployeeManager").value),
+        Department: document.getElementById("registerEmployeeDepartment").value,
+        Designation: document.getElementById("registerEmployeeDesignation").value
     };
 
     try {
@@ -275,23 +269,12 @@ document.getElementById("registerEmployeeForm").addEventListener("submit", async
         const data = await response.json();
 
         if (!response.ok) {
-            let errorMsg = "Employee registration failed";
-            if (typeof data.detail === "string") {
-                errorMsg = data.detail;
-            } else if (Array.isArray(data.detail)) {
-                errorMsg = data.detail.map(d => (d.loc ? d.loc[d.loc.length - 1] + ": " : "") + (d.msg || JSON.stringify(d))).join("; ");
-            } else if (data.detail && typeof data.detail === "object") {
-                errorMsg = data.detail.msg || data.detail.message || JSON.stringify(data.detail);
-            }
-            message.textContent = errorMsg;
+            message.textContent = data.detail || "Employee registration failed";
             return;
         }
 
         message.textContent = "Employee registered successfully!";
         event.target.reset();
-        loadManagers();
-        if (typeof loadEmployees === "function") loadEmployees();
-        if (typeof loadManagerCards === "function") loadManagerCards();
 
     } catch (error) {
         console.error(error);
@@ -299,6 +282,77 @@ document.getElementById("registerEmployeeForm").addEventListener("submit", async
     }
 });
 
+async function loadEmployees() {
+    const token = localStorage.getItem("access_token");
+    const dashboard = new URLSearchParams(window.location.search)
+        .get("dashboard");
+
+    const listId = dashboard === "manager"
+        ? "managerEmployeeList"
+        : "employeeList";
+
+    const employeeList = document.getElementById(listId);
+    employeeList.hidden = false;
+    employeeList.textContent = "Loading employees...";
+
+    try {
+        const response = await fetch(`${API_URL}/employees`, {
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            employeeList.textContent =
+                data.detail || "Unable to load employees";
+            return;
+        }
+
+        employeeList.replaceChildren();
+
+        if (!Array.isArray(data) || data.length === 0) {
+            employeeList.textContent = "No employees found";
+            return;
+        }
+
+        data.forEach(employee => {
+            const item = document.createElement("p");
+
+            item.textContent =
+                `ID: ${employee.Employee_Id} | ` +
+                `Name: ${employee.Employee_Name} | ` +
+                `Department: ${employee.Department} | ` +
+                `Designation: ${employee.Designation}` +
+                (employee.Is_Active === false ? " (Inactive)" : "");
+
+            employeeList.appendChild(item);
+
+            if (listId === "employeeList") {
+                const deactivateButton = document.createElement("button");
+                deactivateButton.textContent = employee.Is_Active === false ? "Deactivated" : "Deactivate";
+                deactivateButton.type = "button";
+                if (employee.Is_Active === false) {
+                    deactivateButton.disabled = true;
+                    deactivateButton.style.opacity = "0.5";
+                }
+
+                deactivateButton.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    deactivateEmployee(employee.Employee_Id);
+                });
+
+                item.appendChild(deactivateButton);
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        employeeList.textContent = "Unable to connect to the server";
+    }
+}
 async function deactivateEmployee(employeeId) {
     console.log("Deactivate clicked:", employeeId);
     if (!confirm(`Are you sure you want to deactivate Employee ${employeeId}?`)) {
@@ -651,15 +705,7 @@ async function apiRequest(url, options = {}) {
     const data = await response.json();
 
     if (!response.ok) {
-        let errStr = "Request failed";
-        if (typeof data.detail === "string") {
-            errStr = data.detail;
-        } else if (Array.isArray(data.detail)) {
-            errStr = data.detail.map(d => (d.loc ? d.loc[d.loc.length - 1] + ": " : "") + (d.msg || JSON.stringify(d))).join("; ");
-        } else if (data.detail && typeof data.detail === "object") {
-            errStr = data.detail.msg || data.detail.message || JSON.stringify(data.detail);
-        }
-        throw new Error(errStr);
+        throw new Error(data.detail || "Request failed");
     }
 
     return data;
@@ -1516,3 +1562,99 @@ async function removeManager(id, name, reassignTo, teamSize = 0) {
         showToast(error.message, "bad");
     }
 }
+
+
+/* ================= DIRECT PROFILE + MANAGER QUICK ATTENDANCE ================= */
+
+async function loadMyProfile(containerId = "myProfile") {
+    const box = document.getElementById(containerId);
+    if (!box) return;
+    box.hidden = false;
+    box.textContent = "Loading profile...";
+    try {
+        const d = await apiRequest("/auth/me");
+        box.replaceChildren();
+        const head = h("div", "head");
+        const title = h("div");
+        title.append(h("h3", null, d.Full_Name || "-"), h("span", "chip", d.Role_Name || ""));
+        head.append(h("span", "avatar", (d.Full_Name || "?").trim().charAt(0).toUpperCase()), title);
+        const info = h("div", "info");
+        [["User ID", d.User_Id], ["Email", d.Email], ["Phone", d.Phone], ["Employee ID", d.Employee_Id],
+         ["Department", d.Department], ["Designation", d.Designation]]
+            .filter(([, v]) => v !== undefined && v !== null && v !== "")
+            .forEach(([l, v]) => {
+                const cell = h("div");
+                cell.append(h("small", null, l), h("b", null, v));
+                info.appendChild(cell);
+            });
+        box.append(head, info);
+    } catch (error) {
+        box.textContent = error.message;
+    }
+}
+
+function autoLoadProfile(role) {
+    const id = { admin: "adminProfile", manager: "managerProfile", employee: "employeeProfile" }[role];
+    if (id) loadMyProfile(id);
+}
+[["adminP1", "adminProfile"], ["mgrP1", "managerProfile"], ["empP1", "employeeProfile"]].forEach(([panel, box]) => {
+    document.querySelector(`[data-panel="${panel}"]`)?.addEventListener("click", () => loadMyProfile(box));
+});
+
+async function loadMarkList() {
+    const box = document.getElementById("markList");
+    if (!box) return;
+    box.textContent = "Loading your team...";
+    try {
+        const employees = await apiRequest("/employees");
+        const today = {};
+        try {
+            const d = new Date();
+            const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            (await apiRequest("/attendance")).forEach(r => {
+                if (String(r.Attendance_Date).startsWith(ds)) today[r.Employee_Id] = r.Status;
+            });
+        } catch (e) { /* history is optional here */ }
+
+        box.replaceChildren();
+        const team = (Array.isArray(employees) ? employees : []).filter(e => e.Is_Active !== false);
+        if (!team.length) {
+            box.textContent = "No employees are assigned to you yet.";
+            return;
+        }
+        team.forEach(emp => {
+            const group = h("div", "mk");
+            ["Present", "Absent", "Half Day", "Leave"].forEach(st => {
+                group.appendChild(actionBtn(st, today[emp.Employee_Id] === st ? "sel" : "",
+                    () => markStatus(emp.Employee_Id, emp.Employee_Name, st)));
+            });
+            box.appendChild(makeCard([
+                ["ID", emp.Employee_Id], ["Name", emp.Employee_Name],
+                ["Today", today[emp.Employee_Id] || "Not marked"]
+            ], [group]));
+        });
+    } catch (error) {
+        box.textContent = error.message;
+    }
+}
+
+async function markStatus(id, name, status) {
+    const body = JSON.stringify({ Employee_Id: Number(id), Status: status });
+    try {
+        try {
+            await apiRequest("/attendance", { method: "POST", body });
+        } catch (firstError) {
+            try {
+                await apiRequest(`/attendance/${encodeURIComponent(id)}`, { method: "PUT", body });
+            } catch (e) {
+                throw firstError;
+            }
+        }
+        showToast(`${name}: marked ${status}`, "ok");
+        loadMarkList();
+    } catch (error) {
+        showToast(error.message, "bad");
+    }
+}
+document.querySelector('[data-panel="mgrP3"]')?.addEventListener("click", loadMarkList);
+document.querySelector('[data-sub="maMark"]')?.addEventListener("click", loadMarkList);
